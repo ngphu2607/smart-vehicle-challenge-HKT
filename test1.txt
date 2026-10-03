@@ -27,11 +27,6 @@ void setup() {
     Serial.begin(115200);
     delay(1000); // Chờ Serial kết nối ổn định
 
-    Serial.println("======================================");
-    Serial.println(" Smart Vehicle Challenge - ESP32-S3   ");
-    Serial.println(" Hệ thống đã khởi động thành công!   ");
-    Serial.println("======================================");
-
     // Cấu hình chân GPIO Output
     pinMode(LED_PIN, OUTPUT);
     pinMode(MOTOR_LEFT_PWM, OUTPUT);
