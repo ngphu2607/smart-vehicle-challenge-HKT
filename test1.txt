@@ -12,6 +12,11 @@
 // Định nghĩa chân LED onboard hoặc test (tùy chỉnh theo board ESP32-S3 của bạn)
 #define LED_PIN 2
 
+// Định nghĩa chân điều khiển động cơ mẫu (sử dụng Driver L298N / TB6612 / L9110)
+#define MOTOR_LEFT_PWM   4
+#define MOTOR_LEFT_DIR   5
+#define MOTOR_RIGHT_PWM  6
+#define MOTOR_RIGHT_DIR  7
 
 // Hàm nguyên mẫu
 void stopMotors();
