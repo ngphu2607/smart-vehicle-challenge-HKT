@@ -1,0 +1,20 @@
+# PlatformIO build & cache
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE configurations
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Compiled files
+*.bin
+*.hex
+*.elf
+*.o
+*.obj
+
+# OS temporary files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,95 @@
+#include <Arduino.h>
+
+/*
+ * ============================================================================
+ * Dự án: Smart Vehicle Challenge
+ * Board: ESP32-S3 (esp32-s3-devkitm-1)
+ * Framework: Arduino
+ * File: main.cpp - Khung code cơ bản khởi tạo và điều khiển
+ * ============================================================================
+ */
+
+// Định nghĩa chân LED onboard hoặc test (tùy chỉnh theo board ESP32-S3 của bạn)
+#define LED_PIN 2
+
+// Định nghĩa chân điều khiển động cơ mẫu (sử dụng Driver L298N / TB6612 / L9110)
+#define MOTOR_LEFT_PWM   4
+#define MOTOR_LEFT_DIR   5
+#define MOTOR_RIGHT_PWM  6
+#define MOTOR_RIGHT_DIR  7
+
+// Hàm nguyên mẫu
+void stopMotors();
+void moveForward(int speed);
+
+void setup() {
+    // Khởi tạo giao tiếp Serial với baudrate chuẩn
+    Serial.begin(115200);
+    delay(1000); // Chờ Serial kết nối ổn định
+
+    Serial.println("======================================");
+    Serial.println(" Smart Vehicle Challenge - ESP32-S3   ");
+    Serial.println(" Hệ thống đã khởi động thành công!   ");
+    Serial.println("======================================");
+
+    // Cấu hình chân GPIO Output
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(MOTOR_LEFT_PWM, OUTPUT);
+    pinMode(MOTOR_LEFT_DIR, OUTPUT);
+    pinMode(MOTOR_RIGHT_PWM, OUTPUT);
+    pinMode(MOTOR_RIGHT_DIR, OUTPUT);
+
+    // Dừng động cơ ở trạng thái ban đầu
+    stopMotors();
+}
+
+void loop() {
+    // 1. Nhấp nháy LED báo hiệu hệ thống đang hoạt động (Heartbeat)
+    digitalWrite(LED_PIN, HIGH);
+    Serial.println("[STATUS] Xe đang sẵn sàng nhận lệnh...");
+    delay(500);
+
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+
+    // 2. Kiểm tra lệnh từ máy tính qua Serial Monitor (nếu có)
+    if (Serial.available() > 0) {
+        char cmd = Serial.read();
+        Serial.printf("[CMD] Nhận lệnh: %c\n", cmd);
+
+        switch (cmd) {
+            case 'F': // Đi tới
+            case 'f':
+                Serial.println("-> Tiến về phía trước");
+                moveForward(150);
+                break;
+            case 'S': // Dừng lại
+            case 's':
+                Serial.println("-> Dừng xe");
+                stopMotors();
+                break;
+            default:
+                Serial.println("-> Lệnh không hợp lệ (F: Tiến, S: Dừng)");
+                break;
+        }
+    }
+}
+
+// ============================================================================
+// CÁC HÀM ĐIỀU KHIỂN ĐỘNG CƠ CƠ BẢN
+// ============================================================================
+
+void moveForward(int speed) {
+    // Cài đặt chiều quay tiến và phát xung PWM
+    digitalWrite(MOTOR_LEFT_DIR, HIGH);
+    analogWrite(MOTOR_LEFT_PWM, speed);
+
+    digitalWrite(MOTOR_RIGHT_DIR, HIGH);
+    analogWrite(MOTOR_RIGHT_PWM, speed);
+}
+void stopMotors() {
+    analogWrite(MOTOR_LEFT_PWM, 0);
+    analogWrite(MOTOR_RIGHT_PWM, 0);
+    digitalWrite(MOTOR_LEFT_DIR, LOW);
+    digitalWrite(MOTOR_RIGHT_DIR, LOW);
+}

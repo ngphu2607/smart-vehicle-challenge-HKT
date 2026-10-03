@@ -1,0 +1,123 @@
+#Hệ thống tự động: cào dữ liệu → xử lý bằng pandas → xuất Excel → gửi email báo cáo
+from openpyxl import load_workbook
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+from openpyxl.styles import Font, PatternFill, Alignment
+
+
+def buoc1_lay_du_lieu(url="https://books.toscrape.com/"): #cao gia sach
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+    response = requests.get(url, headers=headers)
+    response.encoding = "utf-8"
+    soup = BeautifulSoup(response.text, "html.parser")
+    all_books = soup.find_all("article",class_="product_pod")
+    tu_sach = []
+    for book in all_books:
+        ten_sach = book. find("h3").find("a").get("title")
+        gia_sach = book.find("p", class_="price_color").get_text(strip=True)
+        thoi_gian = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        tu_sach.append({
+            "Tên sách": ten_sach,
+            "Giá sách": gia_sach,
+            "Thời gian": thoi_gian
+        })
+    df = pd.DataFrame(tu_sach)
+    return df
+
+def buoc2_xu_ly_du_lieu(df):
+    df["Giá sách(£)"] = df["Giá sách"].str.replace("£", "").astype(float)
+    del(df["Giá sách"])
+    tong_gia_sach = df["Giá sách(£)"].sum()
+    gia_trung_binh = df["Giá sách(£)"].mean()
+    sach_gia_cao = df[df["Giá sách(£)"] > gia_trung_binh]
+    sach_gia_thap = df[df["Giá sách(£)"] <= gia_trung_binh]
+    tinh_toan = {
+        "Tổng giá sách": tong_gia_sach,
+        "Giá trung bình": gia_trung_binh
+    }
+    df_tinh_toan = pd.DataFrame([tinh_toan])
+    df_sach_gia_cao = pd.DataFrame(sach_gia_cao)
+    df_sach_gia_thap = pd.DataFrame(sach_gia_thap)
+    return df, df_tinh_toan, df_sach_gia_cao, df_sach_gia_thap
+
+def buoc3_xuat_excel(df, df_tinh_toan, df_sach_gia_cao, df_sach_gia_thap):
+    duong_dan = Path(__file__).parent / "bao_cao_sach_tu_dong.xlsx"
+    with pd.ExcelWriter(duong_dan, engine="openpyxl") as writer:
+        df.to_excel(writer,sheet_name ="Chi tiết", index=False)
+        df_tinh_toan.to_excel(writer,sheet_name ="Tính toán", index=False)
+        df_sach_gia_cao.to_excel(writer,sheet_name ="Sách giá cao", index=False)
+        df_sach_gia_thap.to_excel(writer,sheet_name ="Sách giá thấp", index=False)
+    wb = load_workbook(duong_dan)
+    ws = wb.active
+    for ten_sheet in wb.sheetnames:
+        ws = wb[ten_sheet]
+        for cell in ws[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="4A90D9", end_color="4A90D9", fill_type="solid")
+    print(f"Đã lưu vào {duong_dan}")
+    return duong_dan
+
+def buoc4_gui_email(duong_dan, email_nguoi_nhan):
+    email_gui = "nguyenneymar07@gmail.com"
+    mat_khau_ung_dung = "xxxx xxxx xxxx xxxx"
+    noi_dung = f"""Xin chao sếp,
+đây là file excel báo cáo giá sách mà sếp nhờ em cào ạ
+    """
+    msg = MIMEMultipart()
+    msg["From"]    = email_gui
+    msg["To"]      = email_nguoi_nhan
+    msg["Subject"] = "Báo cáo giá sách tự động"
+    msg.attach(MIMEText(noi_dung, "plain", "utf-8"))
+    with open(duong_dan, "rb") as f:
+        phan_dinh_kem = MIMEBase("application", "octet-stream")
+        phan_dinh_kem.set_payload(f.read())
+    encoders.encode_base64(phan_dinh_kem)
+    ten_file = Path(duong_dan).name
+    phan_dinh_kem.add_header("Content-Disposition", f"attachment; filename={ten_file}")
+    msg.attach(phan_dinh_kem)
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(email_gui, mat_khau_ung_dung)
+        server.send_message(msg)
+    print(f"Đã gửi email kèm file đến sếp")
+    
+    
+def chay_he_thong(email_nguoi_nhan):
+    print("Bắt đầu chạy hệ thống tự động cào dữ liệu → xử lý bằng pandas → xuất Excel → gửi email báo cáo")
+    try:
+        df = buoc1_lay_du_lieu()
+    except Exception as error:
+        print(f"Lỗi khi cào dữ liệu: {error}")
+        return
+    
+    try:
+        df, df_tinh_toan, df_sach_gia_cao, df_sach_gia_thap = buoc2_xu_ly_du_lieu(df)
+    except Exception as error:
+        print(f"Lỗi khi xử lý dữ liệu: {error}")
+        return
+    
+    try:
+        duong_dan = buoc3_xuat_excel(df, df_tinh_toan, df_sach_gia_cao, df_sach_gia_thap)
+    except Exception as error:
+        print(f"Lỗi khi xuất Excel: {error}")
+        return
+    
+    try:
+        buoc4_gui_email(duong_dan, email_nguoi_nhan)
+    except Exception as error:
+        print(f"Lỗi khi gửi email: {error}")
+        return
+    print("Hệ thống đã chạy xong, báo cáo đã được gửi đến sếp")
+    
+if __name__ == "__main__":
+    email_nguoi_nhan = "kimanhhoang312@gmail.com"
+    chay_he_thong(email_nguoi_nhan)
